@@ -12,7 +12,7 @@ export const chatSchema = z
 // POST /api/onboarding-agent
 export const agentRequestSchema = z
   .object({
-    projectId: objectId,
+    projectId: objectId.optional(),
     goal: z.string().trim().min(3).max(300).default('Find a task I can start this weekend'),
     skills: skillList.optional(),
     hoursAvailable: z.number().min(1).max(80).optional(),
@@ -34,7 +34,14 @@ export const ragAnswerSchema = z.object({
 });
 
 export const toolArgSchemas = {
-  findIssues: z.object({ skills: skillList, projectId: objectId }).strict(),
+  findIssues: z
+    .object({
+      skills: skillList.optional(),
+      projectId: objectId.optional(),
+      goal: z.string().trim().max(500).optional(),
+      limit: z.number().int().min(1).max(50).optional(),
+    })
+    .strict(),
   inspectPrerequisites: z.object({ issueId: objectId }).strict(),
   checkIssueAvailability: z.object({ issueId: objectId }).strict(),
 };
