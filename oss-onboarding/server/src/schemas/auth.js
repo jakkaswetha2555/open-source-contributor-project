@@ -34,3 +34,5 @@ export const profileSchema = z
     availabilityHoursPerWeek: z.number().min(0).max(80).optional(),
   })
   .strict();
+
+export const verifyEmailQuerySchema = z.object({ token: z.string().min(20).max(200) }).strict();

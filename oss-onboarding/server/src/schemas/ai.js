@@ -53,3 +53,14 @@ export const agentRecommendationSchema = z.object({
   evidence: z.array(citationSchema).min(1),
   revisedFrom: objectId.nullable().default(null),
 });
+
+// POST /api/issue-matches  (skills default to the signed-in user's saved profile)
+export const matchRequestSchema = z
+  .object({
+    projectId: objectId.optional(),
+    skills: skillList.optional(),
+    interests: skillList.optional(),
+    hoursAvailable: z.number().min(1).max(80).optional(),
+    limit: z.number().int().min(1).max(20).default(5),
+  })
+  .strict();

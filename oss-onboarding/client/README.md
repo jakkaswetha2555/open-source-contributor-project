@@ -1,10 +1,9 @@
 # client (React + Vite)
 
-Owners: 25071A0545 (auth, discovery) and 25071A0553 (issues, docs reader).
+    npm install
+    npm run dev      # http://localhost:5173, proxies /api to http://localhost:5000
+    npm run build
 
-Scaffold with:
-
-    npm create vite@latest . -- --template react
-    npm install react-router-dom
-
-The API runs on http://localhost:5000. Call it with `credentials: 'include'` and send the CSRF token header on writes.
+Screens: project discovery, issue browser, documentation Q&A (cited answers), starter plan (issue matching,
+onboarding agent, plan submission), maintainer review inbox, plus signup, login, email verification and password reset.
+All requests go through `src/api.js`, which sends the session cookie and the CSRF header.
