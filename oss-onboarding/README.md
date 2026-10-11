@@ -48,3 +48,55 @@ AI members: install Ollama, then `ollama pull nomic-embed-text` and `ollama pull
 
 users, sessions, projects, maintainerGrants, snapshots, documents, chunks, issues, interests,
 contributionPlans, reviews, agentRuns.
+
+---
+
+## Run it (server + client)
+
+```bash
+# 1. API
+cd server
+npm install
+cp .env.example .env          # set MONGODB_URI and SESSION_SECRET
+npm run seed                  # demo users, 3 projects, issues, snapshot docs
+npm run dev                   # http://localhost:5000/api/health
+
+# 2. Web app (second terminal)
+cd client
+npm install
+npm run dev                   # http://localhost:5173  (proxies /api to :5000)
+```
+
+Demo accounts (password `Password123!` for all): `contributor@student.edu`, `maintainer@project.org`, `moderator@portal.org`. Change these before any real deployment.
+Verification and reset emails are printed in the server log unless `SMTP_URL` is set.
+Set `REQUIRE_EMAIL_VERIFICATION=true` to block login until the email is verified (default for production).
+
+### Atlas Vector Search (optional, for semantic matching)
+1. Create the indexes from `server/src/config/vectorIndexes.js` in Atlas (`chunks_vector_index`, `issues_vector_index`).
+2. Start Ollama and pull `nomic-embed-text`, then run `npm run embed-issues` in `server/`.
+3. Set `ISSUE_VECTOR_SEARCH=true`. Without it, matching uses skill/keyword overlap and says so in the response (`method`).
+
+## API reference
+
+| Method and path | Access | Notes |
+| --- | --- | --- |
+| `GET /api/projects`, `GET /api/projects/:id/issues` | Public | Verified public projects only |
+| `POST /api/auth/signup`, `/login`, `/logout`, `/forgot-password`, `/reset-password`; `GET /api/auth/verify-email` | Public | Login limited to 5 failures / 15 min per account, signup 10/hour per IP |
+| `GET /api/me`, `GET /api/auth/me`; `PATCH /api/me/profile` | Signed in | Skill profile used for matching |
+| `POST /api/issue-matches` | Signed in | Open, unassigned issues with reasons; only projects the user may see |
+| `POST /api/contribution-plans`, `GET /api/contribution-plans/:id`, `GET /api/my-plans` | Contributor (own plans) | Evidence from the snapshot is required |
+| `POST /api/issues/:id/interest`, `PATCH /api/issues/:id`, `GET /api/issues/:id` | Contributor / maintainer | |
+| `POST /api/projects/:id/imports` | Maintainer of the project | Chunks and embeds documents |
+| `GET /api/review-inbox`, `POST /api/contribution-plans/:id/review` | Maintainer of the project | |
+| `POST /api/contributor-chat` | Signed in | Cited answers with snapshot version, or "Not found in snapshot." |
+| `POST /api/onboarding-agent` | Signed in | Read-only tools; every call logged in `agentRuns` |
+| `PATCH /api/projects/:id/verification` | Moderator | Verifying a project activates its pending maintainer grants |
+
+Browser sessions use an httpOnly `sid` cookie; every write must also send the `X-CSRF-Token` header (the web client does this automatically from the token returned at login).
+
+## Tests
+
+```bash
+cd server && npm test      # 97 tests: models, schemas, every route, rate limits, moderation, matching, RAG, agent
+cd client && npm run build
+```

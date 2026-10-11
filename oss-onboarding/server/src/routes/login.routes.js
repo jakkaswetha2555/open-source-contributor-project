@@ -6,13 +6,14 @@ import { createHash, randomBytes } from 'node:crypto';
 import { User, Session } from '../models/index.js';
 import { loginSchema } from '../schemas/auth.js';
 import { env } from '../config/env.js';
+import { loginLimiter, loginIpLimiter } from '../middleware/rateLimit.js';
 
 const router = Router();
 
 const SESSION_DURATION = 7 * 24 * 60 * 60 * 1000;
 
 // POST /api/auth/login
-router.post('/auth/login', async (req, res, next) => {
+router.post('/auth/login', loginIpLimiter, loginLimiter, async (req, res, next) => {
   try {
     // Validate the request body
     const result = loginSchema.safeParse(req.body);
@@ -41,6 +42,16 @@ router.post('/auth/login', async (req, res, next) => {
         error: {
           code: 'invalid_credentials',
           message: 'Invalid email or password',
+        },
+      });
+    }
+
+    // Verified-email accounts only (enforced when REQUIRE_EMAIL_VERIFICATION is on)
+    if (env.REQUIRE_EMAIL_VERIFICATION && !user.emailVerified) {
+      return res.status(403).json({
+        error: {
+          code: 'email_not_verified',
+          message: 'Verify your email address before logging in. Check your inbox for the link.',
         },
       });
     }

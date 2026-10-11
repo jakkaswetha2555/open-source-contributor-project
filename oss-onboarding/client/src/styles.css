@@ -1,0 +1,30 @@
+:root { font-family: system-ui, -apple-system, 'Segoe UI', Arial, sans-serif; color: #1f2933; background: #f5f7fa; }
+body { margin: 0; }
+.nav { display: flex; align-items: center; gap: 16px; padding: 12px 24px; background: #fff; border-bottom: 1px solid #d9e0e8; }
+.nav a { color: #0b5cad; text-decoration: none; }
+.nav .spacer { flex: 1; }
+.page { max-width: 900px; margin: 0 auto; padding: 24px; }
+.center { text-align: center; }
+.card { background: #fff; border: 1px solid #d9e0e8; border-radius: 8px; padding: 16px 20px; margin-bottom: 16px; }
+.sub-card { border-top: 1px solid #eef1f5; padding-top: 10px; margin-top: 10px; }
+.muted { color: #66788a; font-size: 14px; }
+.row { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 10px; }
+.row input { flex: 1; min-width: 200px; }
+label { display: block; margin: 10px 0 4px; font-weight: 600; font-size: 14px; }
+input, select, textarea { padding: 8px 10px; border: 1px solid #b8c4d0; border-radius: 6px; font: inherit; box-sizing: border-box; }
+textarea, section.card input:not(.row input), section.card select { width: 100%; }
+button { padding: 8px 14px; border: 0; border-radius: 6px; background: #0b5cad; color: #fff; font: inherit; cursor: pointer; }
+button:disabled { background: #9fb3c8; cursor: not-allowed; }
+.tabs { display: flex; gap: 8px; margin-bottom: 8px; }
+.tabs button { background: #e4ebf3; color: #1f2933; }
+.tabs button.active { background: #0b5cad; color: #fff; }
+.login-container { max-width: 380px; margin: 40px auto; background: #fff; border: 1px solid #d9e0e8; border-radius: 8px; padding: 20px 24px; }
+.form-group { margin-bottom: 12px; }
+.form-group input { width: 100%; }
+.error-banner { background: #fdecea; color: #a12622; padding: 10px 12px; border-radius: 6px; margin: 10px 0; }
+.success-banner { background: #e6f4ea; color: #1e6b34; padding: 10px 12px; border-radius: 6px; margin: 10px 0; }
+.warn { background: #fff4e0; color: #8a5a00; padding: 10px 12px; border-radius: 6px; margin: 10px 0; }
+.project-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 16px; }
+.project-card { background: #fff; border: 1px solid #d9e0e8; border-radius: 8px; padding: 14px 16px; }
+.project-discovery, .loading, .error { max-width: 900px; margin: 0 auto; padding: 24px; }
+code { background: #eef1f5; padding: 1px 5px; border-radius: 4px; }

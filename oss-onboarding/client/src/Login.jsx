@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { api, setCsrfToken } from './api.js';
 
 export default function Login({ onLoginSuccess }) {
   const [email, setEmail] = useState('');
@@ -12,14 +13,8 @@ export default function Login({ onLoginSuccess }) {
     setError(null);
 
     try {
-      const res = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
-      });
-
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message || 'Failed to authenticate');
+      const data = await api('/auth/login', { method: 'POST', body: { email, password } });
+      setCsrfToken(data.csrfToken);
 
       if (onLoginSuccess) onLoginSuccess(data.user);
     } catch (err) {
