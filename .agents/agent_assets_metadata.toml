@@ -1,0 +1,16 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "UPjjl1C7lna28hwjn7I0j"
+uri = "file://.agents/outputs/rag-vector-search-report-25071A0567.pdf"
+type = "pdf"
+title = "RAG and Vector Search Implementation Report"
+description = "Five-page implementation and testing report for roll number 25071A0567, modeled on the attached report."
+logical_id = "528e5859-b5a5-4c99-a1a0-3f6d15723d53"
+content_hash = "sha256:fc97042639fff6b02967257a110155fddbab8368fcb06b78755f444d6b634a99"
+size = 118500
+mtime_ms = 1791703216670
+storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:de0a3147-4acf-43d8-b310-11ef13cc59f2/528e5859-b5a5-4c99-a1a0-3f6d15723d53/daea9350-5275-4e6a-ac53-c6caa828c9c4"
+storage_version_token = "1791703335519361"
+content_type = "application/pdf"
