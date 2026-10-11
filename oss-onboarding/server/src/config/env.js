@@ -10,6 +10,16 @@ const envSchema = z.object({
   EMBED_MODEL: z.string().default('nomic-embed-text'),
   PORT: z.coerce.number().int().positive().default(5000),
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
+  // Use Atlas Vector Search for issue matching. Turn on only after `npm run embed-issues` has stored real embeddings.
+  ISSUE_VECTOR_SEARCH: z.enum(['true', 'false']).default('false').transform((v) => v === 'true'),
+  // Optional SMTP connection URL, e.g. smtps://user:pass@smtp.example.com. Without it, emails are printed to the server log.
+  SMTP_URL: z.string().optional(),
+  MAIL_FROM: z.string().default('Contributor Onboarding <no-reply@localhost>'),
+  // Block login until the email is verified. Defaults to on in production, off for local demos.
+  REQUIRE_EMAIL_VERIFICATION: z
+    .enum(['true', 'false'])
+    .optional()
+    .transform((v) => (v === undefined ? process.env.NODE_ENV === 'production' : v === 'true')),
 });
 
 const parsed = envSchema.safeParse(process.env);
