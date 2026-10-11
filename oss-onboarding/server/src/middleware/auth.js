@@ -12,7 +12,7 @@ export async function requireAuth(req, res, next) {
     }
 
     let isCookieAuth = false;
-    let token = req.cookies?.sessionToken || req.cookies?.session;
+    let token = req.cookies?.sid || req.cookies?.sessionToken || req.cookies?.session;
     if (token) {
       isCookieAuth = true;
     }
@@ -66,7 +66,7 @@ export async function optionalAuth(req, res, next) {
       return next();
     }
 
-    let token = req.cookies?.sessionToken || req.cookies?.session;
+    let token = req.cookies?.sid || req.cookies?.sessionToken || req.cookies?.session;
     const authHeader = req.headers?.authorization;
     if (!token && authHeader && authHeader.startsWith('Bearer ')) {
       token = authHeader.slice(7).trim();

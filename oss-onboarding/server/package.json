@@ -8,7 +8,8 @@
     "dev": "nodemon src/index.js",
     "start": "node src/index.js",
     "seed": "node src/seed/seed.js",
-    "test": "node --test"
+    "test": "node --test",
+    "embed-issues": "node src/scripts/embed-issues.js"
   },
   "engines": {
     "node": ">=20"

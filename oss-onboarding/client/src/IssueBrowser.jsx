@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { api } from './api.js';
 
 export default function IssueBrowser({ projectId = "default-project-id" }) {
   const [issues, setIssues] = useState([]);
@@ -11,11 +12,7 @@ export default function IssueBrowser({ projectId = "default-project-id" }) {
 
   useEffect(() => {
     // Fetch issues from backend API endpoint: GET /api/projects/:id/issues
-    fetch(`/api/projects/${projectId}/issues`)
-      .then((res) => {
-        if (!res.ok) throw new Error("Failed to fetch issues from server");
-        return res.json();
-      })
+    api(`/projects/${projectId}/issues`)
       .then((data) => {
         setIssues(data.issues || data); // supports array or wrapped object
         setLoading(false);
