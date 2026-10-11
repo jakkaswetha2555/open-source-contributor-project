@@ -1,0 +1,17 @@
+Finish my existing RAG and vector-search implementation. I have inspected `server/src/services/rag/ragService.js` and `server/src/routes/projects.routes.js`.
+
+Confirmed gap: the snapshot-import route saves Snapshot, Document, and Issue records, but it does not create Chunk records or embeddings. The RAG service queries Chunk records using Atlas Vector Search.
+
+Please do the following in one focused task:
+
+1. Inspect the Chunk and Document models, environment configuration, vector-index definition, snapshot import route, and existing tests before changing code.
+2. Implement a dedicated ingestion service that splits each imported document's content into sensible overlapping text chunks, preserves its filePath, and generates 768-dimensional embeddings using the configured Ollama embedding model.
+3. Save Chunk records with the exact projectId, snapshotId, visibility, filePath, text, and embedding fields required by the existing model and vector-search filters.
+4. Integrate ingestion into snapshot import safely. Avoid marking an incomplete snapshot as the project's current snapshot. Handle failures without leaving the project pointing at a snapshot whose ingestion failed.
+5. Keep authorization before any document retrieval or vector retrieval. Preserve the existing citations and not-found behavior.
+6. Check that the Atlas Vector Search index definition matches the query's index name, embedding field, dimensions, and filter fields. Do not claim a live Atlas index exists unless actually verified.
+7. Add tests for chunk splitting, embedding dimensions, saved metadata, ingestion failures, and successful snapshot import. Mock external services in automated tests.
+8. Run `npm test` from `server/` and report the exact pass/fail counts.
+9. Do not change unrelated functionality, commit, push, publish, deploy, or expose secrets.
+
+Important: the existing 63 tests already pass. Preserve them. Report what you implemented, what tests passed, and what external setup remains for me. Do not replace real ingestion with dummy data or claim end-to-end success without verifying it.
