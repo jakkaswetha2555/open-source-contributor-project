@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { api } from './api.js';
 
 export default function DocsReader({ projectId = "default-project-id" }) {
   const [question, setQuestion] = useState('');
@@ -14,19 +15,8 @@ export default function DocsReader({ projectId = "default-project-id" }) {
     setError(null);
 
     try {
-      // Calls the backend RAG endpoint: POST /api/contributor-chat[cite: 2]
-      const res = await fetch('/api/contributor-chat', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          // Include CSRF header if required by your team's security layout
-        },
-        body: JSON.stringify({ projectId, question }),
-      });
-
-      if (!res.ok) throw new Error("Failed to get an answer from documentation.");
-
-      const data = await res.json();
+      // Calls the backend RAG endpoint: POST /api/contributor-chat
+      const data = await api('/contributor-chat', { method: 'POST', body: { projectId, question } });
       setResponse(data); // Expected format: { answer, citations: [{filePath}], snapshotVersion }
     } catch (err) {
       setError(err.message);
@@ -67,7 +57,7 @@ export default function DocsReader({ projectId = "default-project-id" }) {
           
           {response.snapshotVersion && (
             <div style={{ fontSize: '12px', color: '#886', marginBottom: '10px' }}>
-              <strong>Source:</strong> Based on snapshot v{response.snapshotVersion}[cite: 2]
+              <strong>Source:</strong> Based on snapshot {response.snapshotVersion}
             </div>
           )}
 

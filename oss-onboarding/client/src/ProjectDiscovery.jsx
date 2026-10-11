@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { api } from './api.js';
 
 export default function ProjectDiscovery({ onSelectProject }) {
   const [projects, setProjects] = useState([]);
@@ -6,11 +7,7 @@ export default function ProjectDiscovery({ onSelectProject }) {
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    fetch('/api/projects')
-      .then((res) => {
-        if (!res.ok) throw new Error('Failed to fetch projects');
-        return res.json();
-      })
+    api('/projects')
       .then((data) => {
         setProjects(data.projects || data);
         setLoading(false);
