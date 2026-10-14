@@ -1,126 +1,196 @@
+import mongoose from 'mongoose';
 import { OllamaEmbeddings } from '@langchain/ollama';
-import { EMBEDDING_DIMENSIONS } from '../../constants.js';
 import { env } from '../../config/env.js';
+import { EMBEDDING_DIMENSIONS } from '../../constants.js';
+import { Chunk } from '../../models/Chunk.js';
 
-export const DOCUMENT_CHUNK_SIZE = 1200;
-export const DOCUMENT_CHUNK_OVERLAP = 150;
+export const CHUNK_MAX_SIZE = 1200;
+export const CHUNK_OVERLAP = 150;
 
-function validateChunkOptions(chunkSize, chunkOverlap) {
-  if (!Number.isInteger(chunkSize) || chunkSize < 1) {
-    throw new TypeError('Chunk size must be a positive integer');
+/**
+ * Validates that an embedding vector is an array of exactly expectedDim finite numbers.
+ */
+export function validateEmbedding(embedding, expectedDim = EMBEDDING_DIMENSIONS) {
+  if (!Array.isArray(embedding)) {
+    throw new Error(`Embedding must be an array, received ${typeof embedding}`);
   }
-  if (!Number.isInteger(chunkOverlap) || chunkOverlap < 0 || chunkOverlap >= chunkSize) {
-    throw new TypeError('Chunk overlap must be a non-negative integer smaller than chunk size');
+  if (embedding.length !== expectedDim) {
+    throw new Error(`Embedding must have ${expectedDim} dimensions, received ${embedding.length}`);
   }
+  for (let i = 0; i < embedding.length; i++) {
+    const val = embedding[i];
+    if (typeof val !== 'number' || !Number.isFinite(val)) {
+      throw new Error(`Embedding element at index ${i} is not a finite number`);
+    }
+  }
+  return true;
 }
 
 /**
- * Splits document text into overlapping character windows, preferring paragraph
- * and line boundaries when they are reasonably close to the target size.
+ * Splits text into bounded chunks respecting paragraph and line breaks where possible.
  */
-export function splitDocumentContent(
-  content,
-  { chunkSize = DOCUMENT_CHUNK_SIZE, chunkOverlap = DOCUMENT_CHUNK_OVERLAP } = {},
-) {
-  validateChunkOptions(chunkSize, chunkOverlap);
-  if (typeof content !== 'string') throw new TypeError('Document content must be a string');
+export function splitTextIntoChunks(text, maxSize = CHUNK_MAX_SIZE, overlap = CHUNK_OVERLAP) {
+  if (!text || typeof text !== 'string') return [];
+  const trimmed = text.trim();
+  if (!trimmed) return [];
 
-  const source = content.trim();
-  if (!source) return [];
+  if (trimmed.length <= maxSize) {
+    return [trimmed];
+  }
 
   const chunks = [];
-  let start = 0;
+  let startIndex = 0;
 
-  while (start < source.length) {
-    let end = Math.min(start + chunkSize, source.length);
-    if (end < source.length) {
-      const minimumBoundary = start + Math.floor(chunkSize * 0.55);
-      const paragraphBreak = source.lastIndexOf('\n\n', end - 2);
-      if (paragraphBreak >= minimumBoundary) {
-        end = paragraphBreak + 2;
-      } else {
-        const lineBreak = source.lastIndexOf('\n', end - 1);
-        if (lineBreak >= minimumBoundary) end = lineBreak + 1;
-      }
+  while (startIndex < trimmed.length) {
+    let endIndex = startIndex + maxSize;
+
+    if (endIndex >= trimmed.length) {
+      chunks.push(trimmed.slice(startIndex).trim());
+      break;
     }
 
-    const text = source.slice(start, end).trim();
-    if (text) chunks.push(text);
-    if (end >= source.length) break;
-    start = Math.max(start + 1, end - chunkOverlap);
+    // Attempt to break at paragraph boundary, line boundary, or whitespace
+    const searchSlice = trimmed.slice(startIndex, endIndex);
+    let breakPoint = searchSlice.lastIndexOf('\n\n');
+    if (breakPoint === -1 || breakPoint < maxSize * 0.4) {
+      breakPoint = searchSlice.lastIndexOf('\n');
+    }
+    if (breakPoint === -1 || breakPoint < maxSize * 0.4) {
+      breakPoint = searchSlice.lastIndexOf(' ');
+    }
+
+    if (breakPoint > 0 && breakPoint >= maxSize * 0.4) {
+      chunks.push(trimmed.slice(startIndex, startIndex + breakPoint).trim());
+      startIndex = Math.max(startIndex + breakPoint + 1 - overlap, startIndex + 1);
+    } else {
+      chunks.push(trimmed.slice(startIndex, endIndex).trim());
+      startIndex = endIndex - overlap;
+    }
   }
 
-  return chunks;
-}
-
-async function embedDocumentTexts(texts) {
-  const embeddings = new OllamaEmbeddings({
-    baseUrl: env.OLLAMA_URL,
-    model: env.EMBED_MODEL,
-  });
-  return embeddings.embedDocuments(texts);
+  return chunks.filter((c) => c.length > 0);
 }
 
 /**
- * Prepare Chunk model records for one imported snapshot. Embedding happens
- * before the caller writes the new snapshot, documents, or chunks to MongoDB,
- * so an Ollama failure cannot make an incomplete snapshot current.
+ * Chunks a single document object, returning chunk objects with file path and chunkIndex.
  */
-export async function prepareSnapshotChunks(
-  { projectId, snapshotId, visibility, documents },
-  {
-    embedDocuments = embedDocumentTexts,
-    chunkSize = DOCUMENT_CHUNK_SIZE,
-    chunkOverlap = DOCUMENT_CHUNK_OVERLAP,
-  } = {},
-) {
-  if (!['public', 'private'].includes(visibility)) {
-    throw new TypeError('Snapshot chunks require a valid project visibility');
-  }
-  if (!Array.isArray(documents)) {
-    throw new TypeError('Snapshot documents must be an array');
-  }
+export function chunkDocument(doc, options = {}) {
+  const { maxSize = CHUNK_MAX_SIZE, overlap = CHUNK_OVERLAP } = options;
+  if (!doc || !doc.content) return [];
 
-  const records = [];
-  for (const document of documents) {
-    if (!document?._id || !document.filePath) {
-      throw new TypeError('Each snapshot document requires an ID and file path');
-    }
-    const textChunks = splitDocumentContent(document.content, { chunkSize, chunkOverlap });
-    if (textChunks.length === 0) {
-      throw new TypeError(`Document ${document.filePath} has no searchable text`);
-    }
-    textChunks.forEach((text, chunkIndex) => {
-      records.push({
-        projectId,
-        snapshotId,
-        documentId: document._id,
-        filePath: document.filePath,
-        chunkIndex,
-        text,
-        visibility,
-      });
-    });
+  const textChunks = splitTextIntoChunks(doc.content, maxSize, overlap);
+  return textChunks.map((text, chunkIndex) => ({
+    documentId: doc._id || doc.id || undefined,
+    filePath: doc.filePath || 'unknown',
+    chunkIndex,
+    text,
+  }));
+}
+
+/**
+ * Chunks an array of documents, generating numbered chunks for each document.
+ */
+export function chunkDocuments(documents = [], options = {}) {
+  const allChunks = [];
+  for (const doc of documents) {
+    const docChunks = chunkDocument(doc, options);
+    allChunks.push(...docChunks);
   }
+  return allChunks;
+}
 
-  if (records.length === 0) return [];
+/**
+ * Generates vector embeddings for an array of texts using Ollama nomic-embed-text.
+ * Rejects vectors that are not 768-dimensional finite numbers.
+ */
+export async function generateEmbeddings(texts = [], options = {}) {
+  if (!texts || texts.length === 0) return [];
 
-  const vectors = await embedDocuments(records.map((record) => record.text));
-  if (!Array.isArray(vectors) || vectors.length !== records.length) {
-    throw new TypeError('Ollama must return one embedding for every document chunk');
-  }
+  const baseUrl = options.baseUrl || env.OLLAMA_URL;
+  const model = options.model || env.EMBED_MODEL;
 
-  return records.map((record, index) => {
-    const embedding = vectors[index];
-    if (
-      !Array.isArray(embedding)
-      || embedding.length !== EMBEDDING_DIMENSIONS
-      || !embedding.every(Number.isFinite)
-    ) {
-      throw new TypeError(
-        `Document chunk embedding must contain ${EMBEDDING_DIMENSIONS} finite numbers`,
-      );
-    }
-    return { ...record, embedding };
+  const embeddings = new OllamaEmbeddings({
+    baseUrl,
+    model,
   });
+
+  let vectors;
+  try {
+    vectors = await embeddings.embedDocuments(texts);
+  } catch (err) {
+    const error = new Error(`Failed to generate embeddings from Ollama (${baseUrl}, model: ${model}): ${err.message}`);
+    error.status = 502;
+    error.code = 'ollama_error';
+    throw error;
+  }
+
+  if (!Array.isArray(vectors) || vectors.length !== texts.length) {
+    const error = new Error(`Ollama returned invalid embedding count: expected ${texts.length}, got ${vectors?.length}`);
+    error.status = 502;
+    error.code = 'ollama_error';
+    throw error;
+  }
+
+  // Validate all returned vectors have correct dimensions and finite values
+  for (let i = 0; i < vectors.length; i++) {
+    try {
+      validateEmbedding(vectors[i], EMBEDDING_DIMENSIONS);
+    } catch (valErr) {
+      const error = new Error(`Invalid embedding vector for text index ${i}: ${valErr.message}`);
+      error.status = 502;
+      error.code = 'invalid_embedding_dimensions';
+      throw error;
+    }
+  }
+
+  return vectors;
+}
+
+/**
+ * Ingests documents for a snapshot: chunks content, embeds vectors via Ollama,
+ * and saves Chunk records to MongoDB with project metadata, snapshotId, and visibility.
+ */
+export async function ingestSnapshotDocuments({
+  projectId,
+  snapshotId,
+  documents = [],
+  visibility = 'public',
+  ollamaOptions = {},
+}) {
+  if (!projectId || !snapshotId) {
+    throw new Error('projectId and snapshotId are required for ingestion');
+  }
+
+  if (!documents || documents.length === 0) {
+    return [];
+  }
+
+  // 1. Chunk documents
+  const chunkDefs = chunkDocuments(documents);
+  if (chunkDefs.length === 0) {
+    return [];
+  }
+
+  // 2. Generate embeddings for all chunk texts
+  const texts = chunkDefs.map((c) => c.text);
+  const embeddings = await generateEmbeddings(texts, ollamaOptions);
+
+  // 3. Prepare Chunk models
+  const chunkDocs = chunkDefs.map((c, i) => ({
+    projectId: new mongoose.Types.ObjectId(projectId),
+    snapshotId: new mongoose.Types.ObjectId(snapshotId),
+    documentId: c.documentId ? new mongoose.Types.ObjectId(c.documentId) : new mongoose.Types.ObjectId(),
+    filePath: c.filePath,
+    chunkIndex: c.chunkIndex,
+    text: c.text,
+    visibility,
+    embedding: embeddings[i],
+  }));
+
+  // 4. Clear any existing chunks for this snapshot to prevent duplicates on retries
+  await Chunk.deleteMany({ snapshotId: new mongoose.Types.ObjectId(snapshotId) });
+
+  // 5. Save chunks to database
+  const savedChunks = await Chunk.insertMany(chunkDocs);
+  return savedChunks;
 }
