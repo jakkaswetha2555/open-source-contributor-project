@@ -36,8 +36,10 @@ router.post('/auth/login', loginIpLimiter, loginLimiter, async (req, res, next) 
     // Retrieve the user and explicitly include the password hash
     const user = await User.findOne({ email }).select('+passwordHash');
 
-    // Reject invalid credentials without revealing which field was wrong
-    if (!user || !(await bcrypt.compare(password, user.passwordHash))) {
+    // Reject invalid credentials without revealing which field was wrong.
+    // A Google-only account has no passwordHash; bcrypt.compare requires a string, so
+    // short-circuit instead of letting it throw for those accounts.
+    if (!user || !user.passwordHash || !(await bcrypt.compare(password, user.passwordHash))) {
       return res.status(401).json({
         error: {
           code: 'invalid_credentials',

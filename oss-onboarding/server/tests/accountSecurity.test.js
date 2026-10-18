@@ -34,6 +34,14 @@ test('login rate limit: 5 wrong passwords for one account are allowed, the 6th g
   assert.deepEqual(statuses, [401, 401, 401, 401, 401, 429]);
 });
 
+test('login: a Google-only account (no passwordHash) gets a clean 401, not a 500', async () => {
+  const findMock = mock.method(User, 'findOne', () => ({ select: async () => ({ _id: new mongoose.Types.ObjectId(), googleId: 'g-1', passwordHash: undefined, emailVerified: true }) }));
+  const res = await post('/api/auth/login', { email: 'google-only@example.com', password: 'whatever-they-typed' });
+  findMock.mock.restore();
+  assert.equal(res.status, 401);
+  assert.equal((await res.json()).error.code, 'invalid_credentials');
+});
+
 test('login rate limit is per account: another email is not blocked by the first one', async () => {
   const findMock = mock.method(User, 'findOne', () => ({ select: async () => null }));
   const res = await post('/api/auth/login', { email: 'someone-else@example.com', password: 'wrong-password' });
