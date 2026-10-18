@@ -9,7 +9,8 @@
     "start": "node src/index.js",
     "seed": "node src/seed/seed.js",
     "test": "node --test",
-    "embed-issues": "node src/scripts/embed-issues.js"
+    "embed-issues": "node src/scripts/embed-issues.js",
+    "verify-rag": "node src/scripts/verify-atlas-rag.js"
   },
   "engines": {
     "node": ">=20"
