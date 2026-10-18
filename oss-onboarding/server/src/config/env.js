@@ -20,6 +20,15 @@ const envSchema = z.object({
     .enum(['true', 'false'])
     .optional()
     .transform((v) => (v === undefined ? process.env.NODE_ENV === 'production' : v === 'true')),
+
+  // "Sign in with Google" (OAuth 2.0 authorization code flow). All three optional: when unset,
+  // GET /api/auth/google replies 503 instead of the server failing to start. Get CLIENT_ID/SECRET
+  // from https://console.cloud.google.com/apis/credentials (OAuth client, type "Web application").
+  GOOGLE_CLIENT_ID: z.string().optional(),
+  GOOGLE_CLIENT_SECRET: z.string().optional(),
+  // Must exactly match an "Authorized redirect URI" on that OAuth client, e.g.
+  // http://localhost:5000/api/auth/google/callback in dev, or your deployed API URL + the same path.
+  GOOGLE_CALLBACK_URL: z.string().url().optional(),
 });
 
 const parsed = envSchema.safeParse(process.env);

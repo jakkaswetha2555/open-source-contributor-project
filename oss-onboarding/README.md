@@ -71,6 +71,21 @@ Demo accounts (password `Password123!` for all): `contributor@student.edu`, `mai
 Verification and reset emails are printed in the server log unless `SMTP_URL` is set.
 Set `REQUIRE_EMAIL_VERIFICATION=true` to block login until the email is verified (default for production).
 
+### Google sign-in (optional)
+"Continue with Google" on the login/signup pages works once you set three env vars; until then the
+button exists but the server replies `503 oauth_not_configured`, so nothing else breaks.
+1. [Google Cloud Console → Credentials](https://console.cloud.google.com/apis/credentials) → **Create Credentials → OAuth client ID** → Application type **Web application**.
+2. **Authorized redirect URI**: `http://localhost:5000/api/auth/google/callback` for local dev, or `https://<your-api-domain>/api/auth/google/callback` in production — it must match `GOOGLE_CALLBACK_URL` exactly.
+3. Copy the Client ID and Client Secret into `server/.env`:
+   ```
+   GOOGLE_CLIENT_ID=...
+   GOOGLE_CLIENT_SECRET=...
+   GOOGLE_CALLBACK_URL=http://localhost:5000/api/auth/google/callback
+   ```
+4. Restart the server. A first-time Google sign-in creates a `contributor` account with `emailVerified: true`
+   (Google already verified it). If the email matches an existing password account, Google is linked to it
+   instead of creating a duplicate — that person can then log in either way.
+
 ### Atlas Vector Search (optional, for semantic matching)
 1. Create the indexes from `server/src/config/vectorIndexes.js` in Atlas (`chunks_vector_index`, `issues_vector_index`).
 2. Start Ollama and pull `nomic-embed-text`, then run `npm run embed-issues` in `server/`.
@@ -82,6 +97,7 @@ Set `REQUIRE_EMAIL_VERIFICATION=true` to block login until the email is verified
 | --- | --- | --- |
 | `GET /api/projects`, `GET /api/projects/:id/issues` | Public | Verified public projects only |
 | `POST /api/auth/signup`, `/login`, `/logout`, `/forgot-password`, `/reset-password`; `GET /api/auth/verify-email` | Public | Login limited to 5 failures / 15 min per account, signup 10/hour per IP |
+| `GET /api/auth/google`, `GET /api/auth/google/callback` | Public | "Sign in with Google"; `503` if `GOOGLE_CLIENT_ID`/`SECRET`/`CALLBACK_URL` are unset |
 | `GET /api/me`, `GET /api/auth/me`; `PATCH /api/me/profile` | Signed in | Skill profile used for matching |
 | `POST /api/issue-matches` | Signed in | Open, unassigned issues with reasons; only projects the user may see |
 | `POST /api/contribution-plans`, `GET /api/contribution-plans/:id`, `GET /api/my-plans` | Contributor (own plans) | Evidence from the snapshot is required |
@@ -97,6 +113,24 @@ Browser sessions use an httpOnly `sid` cookie; every write must also send the `X
 ## Tests
 
 ```bash
-cd server && npm test      # 97 tests: models, schemas, every route, rate limits, moderation, matching, RAG, agent
+cd server && npm test      # 106 tests: models, schemas, every route (incl. Google OAuth), rate limits, moderation, matching, RAG, agent
 cd client && npm run build
 ```
+
+Server tests mock Mongoose model calls and outbound HTTP (Ollama, Google) with Node's built-in
+`node:test` mocking — they run without a live MongoDB, Ollama, or Google app, and that's intentional
+(fast, no external dependency in CI). They do **not** replace testing against a real `mongod` + Ollama
+before you demo or deploy — see **Troubleshooting** below for how to do that locally.
+
+## Troubleshooting
+
+| Symptom | Likely cause / fix |
+| --- | --- |
+| Server exits immediately printing "Invalid environment configuration" | `.env` is missing or a required var (`MONGODB_URI`, `SESSION_SECRET`) is unset/too short. Copy `.env.example` again. |
+| `npm run dev` hangs, then MongoDB connection errors after ~10s | No `mongod` reachable at `MONGODB_URI`. Start MongoDB locally (`mongod` service, or `mongosh` to check it's listening on `127.0.0.1:27017`) or point `MONGODB_URI` at an Atlas cluster you've whitelisted your IP for. |
+| `GET /api/health` returns `"database": "disconnected"` | Same as above — the server is up but MongoDB isn't. This endpoint checks the real live connection state, not a hardcoded value. |
+| Onboarding agent / contributor-chat endpoints return a 5xx with "Ollama unavailable" | Ollama isn't running, or the model isn't pulled. `ollama serve` in one terminal, `ollama list` in another to confirm `CHAT_MODEL` and `EMBED_MODEL` (from `.env`) are present. |
+| `/api/auth/google` returns `503 oauth_not_configured` | `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET`/`GOOGLE_CALLBACK_URL` are unset — see the Google sign-in section above. |
+| Google sign-in redirects back with `?error=google_oauth_invalid_state` | The `oauth_state` cookie didn't round-trip — usually means `GOOGLE_CALLBACK_URL` doesn't match the Google Console redirect URI exactly, or the browser blocked the cookie (check you're on `http://localhost`, not `127.0.0.1`, consistently). |
+| Every `POST`/`PATCH` from the web client returns `403 csrf_error` | The client lost its CSRF token (e.g. `sessionStorage` cleared, or a direct page reload after an OAuth redirect before the app read `?csrf=`). Log out and back in. |
+| `npm test` fails on a `passwordHash` validation error you didn't expect | A test or seed script is creating a `User` without either `passwordHash` or `googleId` — every user needs one or the other. |
