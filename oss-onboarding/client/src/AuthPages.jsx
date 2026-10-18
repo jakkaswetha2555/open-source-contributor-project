@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { api } from './api.js';
+import { GoogleButton } from './Login.jsx';
 
 function useAction() {
   const [state, setState] = useState({ loading: false, error: null, message: null });
@@ -45,6 +46,7 @@ export function Signup() {
         </div>
         <button type="submit" disabled={state.loading}>{state.loading ? 'Creating...' : 'Sign up'}</button>
       </form>
+      <GoogleButton />
       <p>Already registered? <Link to="/login">Log in</Link></p>
     </div>
   );

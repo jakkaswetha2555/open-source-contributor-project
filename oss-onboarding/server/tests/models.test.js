@@ -15,6 +15,17 @@ test('user: invalid role is rejected, default role is contributor', () => {
   assert.equal(ok.email, 'a@b.com');
 });
 
+test('user: needs a password or a linked Google account, not neither', () => {
+  const neither = new User({ email: 'a@b.com', name: 'A' });
+  assert.ok(neither.validateSync()?.errors.passwordHash);
+
+  const passwordOnly = new User({ email: 'a@b.com', name: 'A', passwordHash: 'x' });
+  assert.equal(passwordOnly.validateSync(), undefined);
+
+  const googleOnly = new User({ email: 'a@b.com', name: 'A', googleId: 'google-sub-123' });
+  assert.equal(googleOnly.validateSync(), undefined);
+});
+
 test('issue: invalid status rejected, embedding must be 768 dims', () => {
   const base = { projectId: id(), title: 't', summary: 's' };
   assert.ok(new Issue({ ...base, status: 'done' }).validateSync()?.errors.status);
