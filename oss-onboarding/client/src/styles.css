@@ -22,6 +22,9 @@ button:disabled { background: #9fb3c8; cursor: not-allowed; }
 .form-group { margin-bottom: 12px; }
 .form-group input { width: 100%; }
 .error-banner { background: #fdecea; color: #a12622; padding: 10px 12px; border-radius: 6px; margin: 10px 0; }
+.google-btn { display: block; text-align: center; margin-top: 12px; padding: 8px 14px; border: 1px solid #b8c4d0; border-radius: 6px; background: #fff; color: #1f2933; text-decoration: none; font-weight: 600; }
+.google-btn:hover { background: #f5f7fa; }
+.oauth-error { max-width: 900px; margin: 12px auto 0; }
 .success-banner { background: #e6f4ea; color: #1e6b34; padding: 10px 12px; border-radius: 6px; margin: 10px 0; }
 .warn { background: #fff4e0; color: #8a5a00; padding: 10px 12px; border-radius: 6px; margin: 10px 0; }
 .project-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 16px; }

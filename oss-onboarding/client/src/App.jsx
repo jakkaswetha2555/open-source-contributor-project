@@ -43,8 +43,24 @@ function LoginPage({ onLogin }) {
 export default function App() {
   const [user, setUser] = useState(null);
   const [ready, setReady] = useState(false);
+  const [oauthError, setOauthError] = useState(null);
 
   useEffect(() => {
+    // Google sign-in lands back here with ?csrf=... (a one-time token the redirect can't
+    // deliver as JSON) or ?error=... on failure. Consume either, then clean the URL so a
+    // refresh or share-link doesn't carry the token around.
+    const params = new URLSearchParams(window.location.search);
+    const csrf = params.get('csrf');
+    const error = params.get('error');
+    if (csrf) setCsrfToken(csrf);
+    if (error) setOauthError(error);
+    if (csrf || error) {
+      const url = new URL(window.location.href);
+      url.searchParams.delete('csrf');
+      url.searchParams.delete('error');
+      window.history.replaceState({}, '', url.pathname + url.search);
+    }
+
     api('/me').then((d) => setUser(d.user)).catch(() => setUser(null)).finally(() => setReady(true));
   }, []);
 
@@ -73,6 +89,11 @@ export default function App() {
           <Link to="/login">Log in</Link>
         )}
       </nav>
+      {oauthError && (
+        <div className="error-banner oauth-error">
+          Google sign-in failed ({oauthError}). Please try again.
+        </div>
+      )}
       <Routes>
         <Route path="/" element={<Home user={user} />} />
         <Route path="/projects/:id" element={<ProjectPage user={user} />} />

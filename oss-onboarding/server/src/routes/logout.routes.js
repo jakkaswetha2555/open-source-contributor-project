@@ -3,6 +3,7 @@ import { Router } from 'express';
 import { createHash } from 'node:crypto';
 
 import { Session } from '../models/index.js';
+import { env } from '../config/env.js';
 
 const router = Router();
 
@@ -14,7 +15,7 @@ router.post('/auth/logout', async (req, res, next) => {
     // Clear the session cookie even if no session exists
     res.clearCookie('sid', {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
+      secure: env.NODE_ENV === 'production',
       sameSite: 'lax',
       path: '/',
     });

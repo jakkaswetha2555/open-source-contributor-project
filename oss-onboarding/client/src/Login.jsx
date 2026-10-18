@@ -51,6 +51,17 @@ export default function Login({ onLoginSuccess }) {
           {loading ? 'Signing in...' : 'Login'}
         </button>
       </form>
+      <GoogleButton />
     </div>
+  );
+}
+
+// Full-page navigation to the server (not a fetch call) — Google needs a real browser
+// redirect to show its consent screen. Same button is used on the Signup page.
+export function GoogleButton() {
+  return (
+    <a className="google-btn" href="/api/auth/google">
+      Continue with Google
+    </a>
   );
 }
