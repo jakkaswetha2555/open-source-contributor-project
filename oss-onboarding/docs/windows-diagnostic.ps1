@@ -40,9 +40,9 @@ foreach ($p in 5000, 5173, 27017, 11434) {
 Write-Host "`n=== Repo .env present? ===" -ForegroundColor Cyan
 $envPath = Join-Path $PSScriptRoot "..\server\.env"
 if (Test-Path $envPath) {
-  Write-Host "Found: $envPath (NOT printing contents — it may hold secrets)"
+  Write-Host "Found: $envPath (NOT printing contents - it may hold secrets)"
 } else {
-  Write-Host "No server/.env yet — copy server/.env.example to server/.env and fill it in."
+  Write-Host "No server/.env yet - copy server/.env.example to server/.env and fill it in."
 }
 
 Write-Host "`nDone. Copy everything above and send it back." -ForegroundColor Green
