@@ -1,4 +1,5 @@
-
+import { Document } from '../../models/Document.js';
+import { Chunk } from '../../models/Chunk.js';
 
 import { OllamaEmbeddings } from '@langchain/ollama';
 import { getEncoding } from 'js-tiktoken';
@@ -56,4 +57,99 @@ export function splitIntoChunks(text, chunkSize = 500, overlap = 50) {
   }
 
   return chunks;
+}
+
+/**
+ * Ingest document contents into MongoDB.
+ * Each file must contain: filePath and content.
+ */
+export async function ingestDocuments({
+  projectId,
+  snapshotId,
+  files,
+  visibility = 'public',
+}) {
+  if (!projectId || !snapshotId || !Array.isArray(files)) {
+    throw new Error('projectId, snapshotId, and files are required');
+  }
+
+  const results = [];
+
+  for (const file of files) {
+    const filePath = file.filePath?.replace(/\\/g, '/').trim();
+    const content = file.content;
+
+    if (!filePath || typeof content !== 'string' || !content.trim()) {
+      continue;
+    }
+
+    // Skip environment files and paths that could expose secrets.
+    const lowerPath = filePath.toLowerCase();
+    if (
+      lowerPath.split('/').some(part =>
+        ['node_modules', '.git', 'dist', 'build'].includes(part)
+      ) ||
+      /(^|\/)\.env($|\.)/.test(lowerPath)
+    ) {
+      continue;
+    }
+
+    const title = file.title ||
+      filePath.split('/').pop() ||
+      'Untitled';
+
+    // Create or update the document for this snapshot and path.
+    const document = await Document.findOneAndUpdate(
+      { snapshotId, filePath },
+      {
+        $set: {
+          projectId,
+          snapshotId,
+          filePath,
+          title,
+          type: file.type || 'other',
+          content,
+        },
+      },
+      { new: true, upsert: true, runValidators: true },
+    );
+
+    // Remove old chunks for this document before re-ingesting it.
+    await Chunk.deleteMany({ documentId: document._id });
+
+    const chunks = splitIntoChunks(content);
+    let chunkIndex = 0;
+
+    for (const chunkText of chunks) {
+      const embedding = await generateEmbedding(chunkText);
+
+      await Chunk.create({
+        projectId,
+        snapshotId,
+        documentId: document._id,
+        filePath,
+        chunkIndex,
+        text: chunkText,
+        visibility,
+        embedding,
+      });
+
+      chunkIndex++;
+    }
+
+    results.push({
+      filePath,
+      documentId: document._id,
+      chunksCreated: chunkIndex,
+    });
+  }
+
+  return {
+    filesProcessed: results.length,
+    totalChunks: results.reduce(
+      (sum, result) => sum + result.chunksCreated,
+      0,
+    ),
+    results,
+  };
 }
